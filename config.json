@@ -1,7 +1,7 @@
 {
   "http_port": 8443,
-  "cert_file": "server.crt",
-  "key_file": "server.key",
+  "cert_file": "localhost.pem",
+  "key_file": "localhost-key.pem",
   "zones": [],
   "arm_modes": [
     { "name": "Away", "active_zones": [] },

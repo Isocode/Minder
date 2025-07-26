@@ -16,7 +16,7 @@ import (
     "io/fs"
 )
 
-//go:embed web/dist/*
+//go:embed web/dist/* web/dist/assets/**
 var embeddedFiles embed.FS
 
 // Server holds global state for the HTTP server and the alarm logic.
