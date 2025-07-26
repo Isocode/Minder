@@ -37,6 +37,7 @@ export default function App() {
 
   // Logs state for the event log page
   const [logs, setLogs] = useState([]);
+  // No state needed for help page; content is static.
 
   // Load status periodically
   useEffect(() => {
@@ -227,6 +228,7 @@ export default function App() {
           <button onClick={() => setPage('users')} className={page === 'users' ? 'active' : ''}>Users</button>
           <button onClick={() => setPage('logs')} className={page === 'logs' ? 'active' : ''}>Logs</button>
           <button onClick={() => setPage('test')} className={page === 'test' ? 'active' : ''}>Test</button>
+          <button onClick={() => setPage('help')} className={page === 'help' ? 'active' : ''}>Help</button>
           <button onClick={handleLogout}>Logout</button>
         </nav>
       </header>
@@ -421,6 +423,34 @@ export default function App() {
               {currentMode !== 'TestSoft' && currentMode !== 'TestWiring' && (
                 <p>Select a test mode above to begin.</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {page === 'help' && (
+          <div className="help">
+            <div className="card">
+              <h2>Help &amp; User Guide</h2>
+              <p><strong>Welcome to Minder!</strong>  This system monitors sensors connected to a Raspberry&nbsp;Pi and lets you control them from your browser.  All communication is encrypted over HTTPS.</p>
+              <h3>Logging In</h3>
+              <p>When the server starts for the first time it creates a default administrator account called <code>admin</code> with password <code>admin</code>.  Log in with these credentials and immediately create a new user and change the admin password.</p>
+              <h3>Zones</h3>
+              <p>Zones represent physical sensors.  Use the <em>Zones</em> page to add a zone by specifying a name, type (contact or PIR), GPIO pin and whether it is enabled.  Delete zones when they are no longer used.</p>
+              <h3>Arm Modes</h3>
+              <p>An arm mode defines which zones should be active when the system is armed.  For example, <em>Away</em> might include all zones, while <em>Home</em> might exclude interior motion sensors.  Use the <em>Arm Modes</em> page to create or update modes by listing zone IDs.</p>
+              <h3>Arming and Disarming</h3>
+              <p>The <em>Status</em> page shows the current mode and a list of zones with their triggered state.  Use the buttons to arm in a chosen mode or to disarm.  When armed, the system continuously monitors the active zones and records any triggers in the log.</p>
+              <h3>Test Modes</h3>
+              <p>Two special modes make it easy to test without causing a disturbance.  <strong>Test&nbsp;Soft</strong> ignores real sensors and lets you trigger zones manually from the <em>Test</em> page.  <strong>Test&nbsp;Wiring</strong> monitors sensors but suppresses alerts, logging triggers only.  Use these modes to check your configuration and wiring.</p>
+              <h3>Logs</h3>
+              <p>Every significant event (login, arm/disarm, zone trigger, configuration change, alert delivery) is recorded to a rolling log file.  View recent entries on the <em>Logs</em> page.</p>
+              <h3>User Management</h3>
+              <p>Administrators can add or remove user accounts and assign administrator privileges on the <em>Users</em> page.  Never delete the built‑in <code>admin</code> user; instead, change its password for security.</p>
+              <h3>Alerts</h3>
+              <p>When a zone triggers in a normal arm mode the system can send notifications.  By default it logs an alert entry.  To enable email alerts, edit the <code>alerts</code> section of <code>config.json</code> with your SMTP server details (see the development guide).</p>
+              <h3>TLS Certificate</h3>
+              <p>The server requires a certificate and private key to operate.  Use the provided <code>generate_cert.sh</code> script in <code>scripts/</code> to generate a self‑signed certificate for testing or obtain a Let&rsquo;s&nbsp;Encrypt certificate for production.  Update <code>config.json</code> to point to your cert and key files.</p>
+              <p>If you need more technical information (build instructions, extending the system, etc.), see the <em>Development Guide</em> (<code>DEVELOPMENT.md</code>) in the project repository.</p>
             </div>
           </div>
         )}

@@ -6,8 +6,11 @@ This project implements a modular burglar alarm system designed to run on a **Ra
 
 * **Multiple Zones** – define door contacts, PIR motion detectors or other sensor types, and group them into arm profiles.
 * **Arm Modes** – create profiles such as *Away* (all zones active) or *Home* (interior motion sensors ignored).
-* **Web UI** – a simple SPA served over HTTPS allows users to arm/disarm the system, view status, configure zones and manage user accounts.
+* **Web UI** – a React‑based SPA served over HTTPS allows users to arm/disarm the system, view status, configure zones and manage user accounts.  It includes built‑in help, event log viewing and test modes.
 * **User Management** – administrator accounts can add or remove users, assign roles and change passwords.
+* **Logging** – all significant events (login, arm, disarm, zone triggers, configuration changes) are recorded to a rolling log file.  The UI exposes a Logs page to view recent entries.
+* **Test Modes** – two special arm modes allow safe testing.  *Test Soft* lets you trigger zones via the UI to verify alerts.  *Test Wiring* monitors sensors and logs triggers without sending alerts, so you can check wiring without disturbing your household.
+* **Alerting** – the system supports pluggable alerts.  By default it logs alerts to the event log; you can enable email alerts by editing `config.json`.  Additional alert handlers can be added by implementing the `AlertHandler` interface.
 * **TLS by Default** – the HTTP server requires a certificate and private key.  A helper script for generating a self‑signed cert is included.  You can also use Let’s Encrypt if the Pi is publicly reachable.
 * **Extensible** – the code structure makes it easy to add new zone types or alert mechanisms (email, SMS, etc.).
 
@@ -126,11 +129,9 @@ WantedBy=multi-user.target
 
 Save this as `/etc/systemd/system/minder.service`, reload systemd (`sudo systemctl daemon-reload`), enable the service (`sudo systemctl enable minder`), then start it (`sudo systemctl start minder`).
 
-## TODO
+## Getting Help
 
-* Implement a polished front‑end using a modern framework or plain HTML/CSS/JS.  The current UI is functional but minimal.
-* Add email/SMS alerts when an alarm is triggered.
-* Support for additional sensor types (glass break, vibration sensors, etc.).
+The web application includes a **Help** page accessible from the navigation bar once you log in.  It provides step‑by‑step guidance for everyday tasks such as arming/disarming, configuring zones and users, using test modes and reading the event log.  For developers and tinkerers looking to extend the system, see the file `DEVELOPMENT.md` in this repository.
 
 ---
 
