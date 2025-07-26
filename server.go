@@ -13,6 +13,7 @@ import (
     "sync"
     "time"
     "os"
+    "io/fs"
 )
 
 //go:embed web/dist/*
@@ -75,17 +76,32 @@ func (s *Server) Start() error {
     mux.HandleFunc("/api/logs", s.withAuth(s.handleLogs))
     mux.HandleFunc("/api/test_trigger", s.withAuth(s.handleTestTrigger))
     
-    // Static files.  The front‑end is built into web/dist by Vite.  Ensure you
-    // run `npm run build` in the web folder before building the Go binary so
-    // that web/dist exists.  We strip the "dist" prefix so that index.html is
-    // served at the root.
-    fs := http.FS(embeddedFiles)
-    fileServer := http.FileServer(fs)
+    // Static file handling.  The front‑end is built into web/dist by Vite.
+    // We embed `web/dist` under the embedded filesystem (see //go:embed
+    // directive).  Create a sub-filesystem rooted at web/dist so that
+    // requests to `/index.html` map to the file `web/dist/index.html`.
+    // Without using fs.Sub, http.FileServer will try to serve files from the
+    // root of the embedded filesystem and generate 301 redirects when it
+    // cannot find the requested path.  Serving via a sub-FS prevents
+    // redirect loops like "Too many redirects" when requesting "/".
+    distFS, err := fs.Sub(embeddedFiles, "web/dist")
+    if err != nil {
+        return fmt.Errorf("failed to init embedded filesystem: %w", err)
+    }
+    fileServer := http.FileServer(http.FS(distFS))
     mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        // Always serve index.html for directories or missing files to support SPA routing
-        path := r.URL.Path
-        if path == "/" || strings.HasPrefix(path, "/index.html") {
+        // Trim leading slash for FS lookup
+        path := strings.TrimPrefix(r.URL.Path, "/")
+        // Attempt to open the requested file.  If it doesn't exist or is a
+        // directory, fall back to index.html.  We do not rewrite just the
+        // root path because the FS is already rooted at web/dist.
+        f, err := distFS.Open(path)
+        if err != nil {
             r.URL.Path = "/index.html"
+        } else {
+            if fi, err2 := f.Stat(); err2 == nil && fi.IsDir() {
+                r.URL.Path = "/index.html"
+            }
         }
         fileServer.ServeHTTP(w, r)
     })
