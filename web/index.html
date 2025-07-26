@@ -1,93 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Minder Alarm</title>
-  <style>
-    body { font-family: sans-serif; margin: 2rem; }
-    .hidden { display: none; }
-    nav { margin-bottom: 1rem; }
-    nav button { margin-right: 0.5rem; }
-    table { border-collapse: collapse; margin-top: 1rem; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem; }
-  </style>
-</head>
-<body>
-  <h1>Minder Alarm System</h1>
-  <div id="loginPanel">
-    <h2>Login</h2>
-    <form id="loginForm">
-      <label>Username: <input type="text" id="username" required></label><br />
-      <label>Password: <input type="password" id="password" required></label><br />
-      <button type="submit">Login</button>
-    </form>
-    <div id="loginError" style="color:red;"></div>
-  </div>
-  <div id="app" class="hidden">
-    <nav>
-      <span id="welcome"></span>
-      <button id="armBtn">Arm (Away)</button>
-      <button id="disarmBtn">Disarm</button>
-      <button id="logoutBtn">Logout</button>
-    </nav>
-    <h2>System Status</h2>
-    <div>Mode: <span id="mode"></span></div>
-    <h3>Zones</h3>
-    <table>
-      <thead><tr><th>ID</th><th>Name</th><th>Type</th><th>Pin</th><th>Enabled</th><th>Triggered</th></tr></thead>
-      <tbody id="zoneTable"></tbody>
-    </table>
-  </div>
-  <script>
-    async function api(path, opts = {}) {
-      const res = await fetch(path, Object.assign({ credentials: 'include' }, opts));
-      if (!res.ok) throw new Error(res.status);
-      return res.status === 204 ? null : res.json();
-    }
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      try {
-        await api('/api/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: username.value, password: password.value })
-        });
-        loginPanel.classList.add('hidden');
-        app.classList.remove('hidden');
-        welcome.textContent = `Logged in as ${username.value}`;
-        loadStatus();
-      } catch (err) {
-        loginError.textContent = 'Login failed';
-      }
-    });
-    document.getElementById('logoutBtn').onclick = async () => {
-      await api('/api/logout', { method: 'POST' });
-      location.reload();
-    };
-    document.getElementById('armBtn').onclick = async () => {
-      await api('/api/arm', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'Away' }) });
-      loadStatus();
-    };
-    document.getElementById('disarmBtn').onclick = async () => {
-      await api('/api/disarm', { method: 'POST' });
-      loadStatus();
-    };
-    async function loadStatus() {
-      try {
-        const st = await api('/api/status');
-        mode.textContent = st.mode;
-        zoneTable.innerHTML = '';
-        st.zones.forEach(z => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `<td>${z.id}</td><td>${z.name}</td><td>${z.type}</td><td>${z.pin}</td><td>${z.enabled}</td><td>${z.active}</td>`;
-          zoneTable.appendChild(tr);
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    }
-    setInterval(() => { if (!app.classList.contains('hidden')) loadStatus(); }, 5000);
-  </script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Minder Alarm</title>
+    <link rel="stylesheet" href="/src/App.css" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>
