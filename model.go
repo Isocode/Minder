@@ -18,6 +18,7 @@ type Zone struct {
     Type    ZoneType `json:"type"`    // sensor type: "contact" or "pir"
     Pin     int      `json:"pin"`     // GPIO pin number (BCM numbering)
     Enabled bool     `json:"enabled"` // if false the zone is ignored
+    Mode    string   `json:"mode,omitempty"` // input mode: "NO" (normally open), "NC" (normally closed), "EOL" (end of line)
 }
 
 // ArmMode associates a name with a list of zone IDs that should be monitored when this mode is active.
@@ -46,4 +47,25 @@ type Config struct {
     Zones    []Zone  `json:"zones"`
     ArmModes []ArmMode `json:"arm_modes"`
     Users    []User  `json:"users"`
+    LogFile  string  `json:"log_file,omitempty"` // path to event log file
+    // Alerts define how the system should notify when a zone is triggered.
+    // If empty, a default log alert will be used.  Each alert configuration
+    // may define an email transport or other mechanism.  See AlertConfig for
+    // details.
+    Alerts   []AlertConfig `json:"alerts,omitempty"`
+}
+
+// AlertConfig specifies the configuration for a single alerting mechanism.  The
+// Type field selects the handler: currently "log" writes to the event log and
+// "email" sends an email via SMTP.  When Type is "email", the SMTP fields
+// must be provided.
+type AlertConfig struct {
+    Type       string `json:"type"`        // "log" or "email"
+    SMTPServer string `json:"smtp_server,omitempty"`
+    SMTPPort   int    `json:"smtp_port,omitempty"`
+    Username   string `json:"username,omitempty"`
+    Password   string `json:"password,omitempty"`
+    From       string `json:"from,omitempty"`
+    To         string `json:"to,omitempty"`
+    Subject    string `json:"subject,omitempty"`
 }

@@ -35,6 +35,9 @@ export default function App() {
   const [newUser, setNewUser] = useState({ username: '', password: '', admin: false });
   const [userError, setUserError] = useState('');
 
+  // Logs state for the event log page
+  const [logs, setLogs] = useState([]);
+
   // Load status periodically
   useEffect(() => {
     if (!loggedIn) return;
@@ -60,10 +63,19 @@ export default function App() {
       try {
         const zs = await api('/api/zones');
         setZones(zs);
-        const us = await api('/api/users');
-        setUsers(us);
-        const ams = await api('/api/arm_modes');
-        setArmModes(ams);
+        // Try to fetch users and arm modes; non‑admins will receive 403
+        try {
+          const us = await api('/api/users');
+          setUsers(us);
+        } catch (err) {
+          // Not an admin or error; ignore
+        }
+        try {
+          const ams = await api('/api/arm_modes');
+          setArmModes(ams);
+        } catch (err) {
+          // ignore
+        }
       } catch (err) {
         console.error(err);
       }
@@ -100,6 +112,30 @@ export default function App() {
   async function disarmSystem() {
     await api('/api/disarm', { method: 'POST' });
     setCurrentMode('Disarmed');
+  }
+
+  // Load logs when the logs page is selected
+  useEffect(() => {
+    if (!loggedIn || page !== 'logs') return;
+    async function loadLogs() {
+      try {
+        const lines = await api('/api/logs?lines=200');
+        setLogs(lines);
+      } catch (err) {
+        console.error(err);
+        setLogs([]);
+      }
+    }
+    loadLogs();
+  }, [loggedIn, page]);
+
+  // Trigger a zone manually in TestSoft mode
+  async function triggerZone(id) {
+    try {
+      await api('/api/test_trigger', { method: 'POST', body: JSON.stringify({ zone_id: id }) });
+    } catch (err) {
+      alert(err.message);
+    }
   }
 
   async function createZone() {
@@ -189,6 +225,8 @@ export default function App() {
           <button onClick={() => setPage('zones')} className={page === 'zones' ? 'active' : ''}>Zones</button>
           <button onClick={() => setPage('armModes')} className={page === 'armModes' ? 'active' : ''}>Arm Modes</button>
           <button onClick={() => setPage('users')} className={page === 'users' ? 'active' : ''}>Users</button>
+          <button onClick={() => setPage('logs')} className={page === 'logs' ? 'active' : ''}>Logs</button>
+          <button onClick={() => setPage('test')} className={page === 'test' ? 'active' : ''}>Test</button>
           <button onClick={handleLogout}>Logout</button>
         </nav>
       </header>
@@ -202,6 +240,9 @@ export default function App() {
                 <button onClick={() => armSystem('Away')} disabled={currentMode === 'Away'}>Arm Away</button>
                 <button onClick={() => armSystem('Home')} disabled={currentMode === 'Home'}>Arm Home</button>
                 <button onClick={disarmSystem} disabled={currentMode === 'Disarmed'}>Disarm</button>
+                {/* Test mode buttons */}
+                <button onClick={() => armSystem('TestSoft')} disabled={currentMode === 'TestSoft'}>Test Soft</button>
+                <button onClick={() => armSystem('TestWiring')} disabled={currentMode === 'TestWiring'}>Test Wiring</button>
               </div>
               <h3>Zones</h3>
               <table>
@@ -315,6 +356,71 @@ export default function App() {
                 <button onClick={createUser}>Create</button>
               </div>
               {userError && <p className="error">{userError}</p>}
+            </div>
+          </div>
+        )}
+
+        {page === 'logs' && (
+          <div className="logs">
+            <div className="card">
+              <h2>Event Log</h2>
+              {logs.length === 0 && <p>No log entries found.</p>}
+              {logs.length > 0 && (
+                <table>
+                  <thead><tr><th>#</th><th>Entry</th></tr></thead>
+                  <tbody>
+                    {logs.map((line, idx) => (
+                      <tr key={idx}>
+                        <td>{idx + 1}</td>
+                        <td><pre style={{ margin: 0 }}>{line}</pre></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </div>
+        )}
+
+        {page === 'test' && (
+          <div className="test">
+            <div className="card">
+              <h2>Test Mode</h2>
+              <p>Current Mode: <strong>{currentMode}</strong></p>
+              <div className="buttons">
+                <button onClick={() => armSystem('TestSoft')} disabled={currentMode === 'TestSoft'}>Start Test Soft</button>
+                <button onClick={() => armSystem('TestWiring')} disabled={currentMode === 'TestWiring'}>Start Test Wiring</button>
+                <button onClick={disarmSystem} disabled={currentMode === 'Disarmed'}>Disarm</button>
+              </div>
+              {currentMode === 'TestSoft' && (
+                <div>
+                  <h3>Trigger Zones</h3>
+                  <table>
+                    <thead>
+                      <tr><th>ID</th><th>Name</th><th>Type</th><th>Pin</th><th>Enabled</th><th>Triggered</th><th>Actions</th></tr>
+                    </thead>
+                    <tbody>
+                      {zones.map((z) => (
+                        <tr key={z.id} className={z.active ? 'triggered' : ''}>
+                          <td>{z.id}</td>
+                          <td>{z.name}</td>
+                          <td>{z.type}</td>
+                          <td>{z.pin}</td>
+                          <td>{z.enabled ? 'Yes' : 'No'}</td>
+                          <td>{z.active ? 'Yes' : 'No'}</td>
+                          <td><button onClick={() => triggerZone(z.id)}>Trigger</button></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              {currentMode === 'TestWiring' && (
+                <p>Trigger sensors physically to verify wiring.  Alerts will be suppressed but events will be logged.</p>
+              )}
+              {currentMode !== 'TestSoft' && currentMode !== 'TestWiring' && (
+                <p>Select a test mode above to begin.</p>
+              )}
             </div>
           </div>
         )}

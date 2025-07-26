@@ -36,7 +36,7 @@ func (cm *ConfigManager) Load() error {
     if err != nil {
         if os.IsNotExist(err) {
             // Create a default configuration
-            defaultCfg := Config{
+                defaultCfg := Config{
                 HTTPPort: 8443,
                 CertFile: "server.crt",
                 KeyFile:  "server.key",
@@ -48,6 +48,10 @@ func (cm *ConfigManager) Load() error {
                 Users: []User{
                     {Username: "admin", PasswordHash: hashPassword("admin"), Admin: true},
                 },
+                LogFile: "events.log",
+                    Alerts: []AlertConfig{
+                        {Type: "log"},
+                    },
             }
             cm.cfg = defaultCfg
             cm.loaded = true
