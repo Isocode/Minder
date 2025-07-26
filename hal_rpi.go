@@ -9,9 +9,10 @@ package main
 
 import (
     "fmt"
-    "periph.io/x/periph/conn/gpio"
-    "periph.io/x/periph/conn/gpio/gpioreg"
-    "periph.io/x/periph/host"
+    // Use the new periph module layout.  See https://periph.io/news/2020/a_new_start/
+    "periph.io/x/conn/v3/gpio"
+    "periph.io/x/conn/v3/gpio/gpioreg"
+    "periph.io/x/host/v3"
 )
 
 // readPin reads the specified GPIO pin and returns true if the voltage level
