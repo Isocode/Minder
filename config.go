@@ -26,17 +26,17 @@ type ConfigManager struct {
 // you should change immediately) and persisted to disk.
 func (cm *ConfigManager) Load() error {
     cm.mu.Lock()
-    defer cm.mu.Unlock()
-    
+    // If the config is already loaded in memory, release the lock and return.
     if cm.loaded {
+        cm.mu.Unlock()
         return nil
     }
-    
+    // Attempt to read config.json
     data, err := ioutil.ReadFile(configPath)
     if err != nil {
         if os.IsNotExist(err) {
             // Create a default configuration
-                defaultCfg := Config{
+            defaultCfg := Config{
                 HTTPPort: 8443,
                 CertFile: "server.crt",
                 KeyFile:  "server.key",
@@ -49,20 +49,26 @@ func (cm *ConfigManager) Load() error {
                     {Username: "admin", PasswordHash: hashPassword("admin"), Admin: true},
                 },
                 LogFile: "events.log",
-                    Alerts: []AlertConfig{
-                        {Type: "log"},
-                    },
+                Alerts: []AlertConfig{{Type: "log"}},
             }
             cm.cfg = defaultCfg
             cm.loaded = true
+            // Release the write lock before saving to avoid deadlock: Save acquires
+            // a read lock on the same mutex.
+            cm.mu.Unlock()
             return cm.Save()
         }
+        // Some other error reading config.json
+        cm.mu.Unlock()
         return fmt.Errorf("unable to read config: %w", err)
     }
+    // Unmarshal existing config
     if err := json.Unmarshal(data, &cm.cfg); err != nil {
+        cm.mu.Unlock()
         return fmt.Errorf("invalid config.json: %w", err)
     }
     cm.loaded = true
+    cm.mu.Unlock()
     return nil
 }
 
@@ -97,10 +103,14 @@ func (cm *ConfigManager) Get() Config {
 // capture the pointer beyond the scope of the function.
 func (cm *ConfigManager) Update(fn func(*Config) error) error {
     cm.mu.Lock()
-    defer cm.mu.Unlock()
+    // Apply the update while holding the write lock.
     if err := fn(&cm.cfg); err != nil {
+        cm.mu.Unlock()
         return err
     }
+    // Release the lock before saving to avoid deadlock: Save acquires a read
+    // lock on the same mutex.
+    cm.mu.Unlock()
     return cm.Save()
 }
 

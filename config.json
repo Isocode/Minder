@@ -1,17 +1,77 @@
 {
   "http_port": 8443,
-  "cert_file": "localhost.pem",
-  "key_file": "localhost-key.pem",
-  "zones": [],
+  "cert_file": "server.crt",
+  "key_file": "server.key",
+  "zones": [
+    {
+      "id": 1,
+      "name": "Garage",
+      "type": "contact",
+      "pin": 3,
+      "enabled": true
+    },
+    {
+      "id": 2,
+      "name": "Kitchen",
+      "type": "pir",
+      "pin": 4,
+      "enabled": true
+    },
+    {
+      "id": 3,
+      "name": "Living Rooom",
+      "type": "pir",
+      "pin": 5,
+      "enabled": true
+    },
+    {
+      "id": 4,
+      "name": "Garden",
+      "type": "pir",
+      "pin": 6,
+      "enabled": true
+    },
+    {
+      "id": 5,
+      "name": "Front Door",
+      "type": "contact",
+      "pin": 7,
+      "enabled": true
+    }
+  ],
   "arm_modes": [
-    { "name": "Away", "active_zones": [] },
-    { "name": "Home", "active_zones": [] }
+    {
+      "name": "Away",
+      "active_zones": []
+    },
+    {
+      "name": "Home",
+      "active_zones": []
+    },
+    {
+      "name": "External",
+      "active_zones": [
+        3,
+        6
+      ]
+    }
   ],
   "users": [
-    { "username": "admin", "password_hash": "", "admin": true }
+    {
+      "username": "admin",
+      "password_hash": "$2a$10$HNncB8aYiEkFYYYoKanAWu3yIhd3jwSsNoPqYA6QhwbmKwRJ1ALX6",
+      "admin": true
+    },
+    {
+      "username": "sean",
+      "password_hash": "$2a$10$JvmD1J5vLXb9KdOpWbIpQOQz0a1JhQJkKuiyt4QynYV4i7fYBL7NC",
+      "admin": true
+    }
   ],
   "log_file": "events.log",
   "alerts": [
-    { "type": "log" }
+    {
+      "type": "log"
+    }
   ]
 }

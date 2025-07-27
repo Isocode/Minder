@@ -14,6 +14,8 @@ import (
     "time"
     "os"
     "io/fs"
+    "mime"
+    "path/filepath"
 )
 
 //go:embed web/dist/* web/dist/assets/**
@@ -88,22 +90,34 @@ func (s *Server) Start() error {
     if err != nil {
         return fmt.Errorf("failed to init embedded filesystem: %w", err)
     }
-    fileServer := http.FileServer(http.FS(distFS))
+    // Serve the embedded SPA manually rather than relying on http.FileServer to
+    // avoid automatic 301 redirects when a directory is requested.  We
+    // attempt to serve the requested file from distFS.  If it does not
+    // exist or is a directory, we fall back to index.html.  The content
+    // type is inferred from the file extension using the mime package.
     mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-        // Trim leading slash for FS lookup
-        path := strings.TrimPrefix(r.URL.Path, "/")
-        // Attempt to open the requested file.  If it doesn't exist or is a
-        // directory, fall back to index.html.  We do not rewrite just the
-        // root path because the FS is already rooted at web/dist.
-        f, err := distFS.Open(path)
-        if err != nil {
-            r.URL.Path = "/index.html"
-        } else {
-            if fi, err2 := f.Stat(); err2 == nil && fi.IsDir() {
-                r.URL.Path = "/index.html"
-            }
+        // derive relative path within the dist folder
+        name := strings.TrimPrefix(r.URL.Path, "/")
+        if name == "" {
+            name = "index.html"
         }
-        fileServer.ServeHTTP(w, r)
+        // Attempt to read the requested file
+        data, err := fs.ReadFile(distFS, name)
+        if err != nil {
+            // fallback to index.html for unknown files or directories
+            data, err = fs.ReadFile(distFS, "index.html")
+            if err != nil {
+                http.NotFound(w, r)
+                return
+            }
+            name = "index.html"
+        }
+        // Set content type based on file extension
+        ext := filepath.Ext(name)
+        if ctype := mime.TypeByExtension(ext); ctype != "" {
+            w.Header().Set("Content-Type", ctype)
+        }
+        _, _ = w.Write(data)
     })
 
     // TLS configuration: use modern defaults
