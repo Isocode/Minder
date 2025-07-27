@@ -30,7 +30,7 @@ export default function App() {
   // Selected arm mode for arming via drop‑down on the status page
   const [selectedMode, setSelectedMode] = useState('');
   const [page, setPage] = useState('status');
-  const [newZone, setNewZone] = useState({ name: '', type: 'contact', pin: '', enabled: true });
+  const [newZone, setNewZone] = useState({ name: '', type: 'contact', pin: '', enabled: true, entry_exit: false });
   const [zoneError, setZoneError] = useState('');
   const [armModeName, setArmModeName] = useState('');
   const [newArmModeZones, setNewArmModeZones] = useState('');
@@ -39,6 +39,13 @@ export default function App() {
 
   // Logs state for the event log page
   const [logs, setLogs] = useState([]);
+  // Remaining seconds for exit and entry delays and alarm state
+  const [exitDelay, setExitDelay] = useState(0);
+  const [entryDelay, setEntryDelay] = useState(0);
+  // Total configured delays for exit and entry.  These allow progress bar calculation.
+  const [exitTotal, setExitTotal] = useState(30);
+  const [entryTotal, setEntryTotal] = useState(30);
+  const [alarmState, setAlarmState] = useState(false);
   // No state needed for help page; content is static.
 
   // Load status periodically
@@ -50,6 +57,12 @@ export default function App() {
         setStatus(data);
         setCurrentMode(data.mode);
         setZones(data.zones);
+        setExitDelay(data.exit_delay || 0);
+        setEntryDelay(data.entry_delay || 0);
+        setAlarmState(!!data.alarm);
+        // Capture configured totals; fall back to defaults (30 seconds) if not provided
+        setExitTotal(data.exit_total || 30);
+        setEntryTotal(data.entry_total || 30);
       } catch (err) {
         console.error(err);
       }
@@ -149,7 +162,7 @@ export default function App() {
     try {
       const pinNum = parseInt(newZone.pin, 10);
       if (isNaN(pinNum)) throw new Error('Pin must be a number');
-      const zone = { ...newZone, pin: pinNum, enabled: !!newZone.enabled };
+      const zone = { ...newZone, pin: pinNum, enabled: !!newZone.enabled, entry_exit: !!newZone.entry_exit };
       await api('/api/zones', { method: 'POST', body: JSON.stringify(zone) });
       setNewZone({ name: '', type: 'contact', pin: '', enabled: true });
       setZoneError('');
@@ -244,6 +257,36 @@ export default function App() {
             <div className="card">
               <h2>System Status</h2>
               <p>Mode: <strong>{currentMode}</strong></p>
+              {/* Alarm banner */}
+              {alarmState && (
+                <div className="alarm-alert">
+                  🔴 Alarm Triggered!
+                </div>
+              )}
+              {/* Exit delay progress bar */}
+              {exitDelay > 0 && (
+                <div className="delay-container exit-delay">
+                  <div className="delay-label"><span>Exit Delay</span><span>{exitDelay}s</span></div>
+                  <div className="delay-bar">
+                    <div
+                      className="delay-bar-fill"
+                      style={{ width: `${((exitTotal - exitDelay) / exitTotal) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {/* Entry delay progress bar */}
+              {entryDelay > 0 && (
+                <div className="delay-container entry-delay">
+                  <div className="delay-label"><span>Entry Delay</span><span>{entryDelay}s</span></div>
+                  <div className="delay-bar">
+                    <div
+                      className="delay-bar-fill"
+                      style={{ width: `${((entryTotal - entryDelay) / entryTotal) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
               <div className="buttons">
                 {/* Dynamic arm mode selection */}
                 <select value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)}>
@@ -285,7 +328,7 @@ export default function App() {
               <h2>Zones</h2>
               <table>
                 <thead>
-                  <tr><th>ID</th><th>Name</th><th>Type</th><th>Pin</th><th>Enabled</th><th>Actions</th></tr>
+                  <tr><th>ID</th><th>Name</th><th>Type</th><th>Pin</th><th>Enabled</th><th>Entry/Exit</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {zones.map((z) => (
@@ -295,6 +338,7 @@ export default function App() {
                       <td>{z.type}</td>
                       <td>{z.pin}</td>
                       <td>{z.enabled ? 'Yes' : 'No'}</td>
+                      <td>{z.entry_exit ? 'Yes' : 'No'}</td>
                       <td><button onClick={() => deleteZone(z.id)}>Delete</button></td>
                     </tr>
                   ))}
@@ -309,6 +353,7 @@ export default function App() {
                 </select>
                 <input placeholder="Pin" value={newZone.pin} onChange={(e) => setNewZone({ ...newZone, pin: e.target.value })} />
                 <label><input type="checkbox" checked={newZone.enabled} onChange={(e) => setNewZone({ ...newZone, enabled: e.target.checked })} /> Enabled</label>
+                <label><input type="checkbox" checked={newZone.entry_exit} onChange={(e) => setNewZone({ ...newZone, entry_exit: e.target.checked })} /> Entry/Exit</label>
                 <button onClick={createZone}>Create</button>
               </div>
               {zoneError && <p className="error">{zoneError}</p>}

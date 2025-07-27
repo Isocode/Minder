@@ -36,7 +36,16 @@
       "name": "Front Door",
       "type": "contact",
       "pin": 7,
-      "enabled": true
+      "enabled": true,
+      "entry_exit": true
+    },
+    {
+      "id": 6,
+      "name": "Oil Store",
+      "type": "contact",
+      "pin": 8,
+      "enabled": true,
+      "entry_exit": true
     }
   ],
   "arm_modes": [

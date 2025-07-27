@@ -19,6 +19,12 @@ type Zone struct {
     Pin     int      `json:"pin"`     // GPIO pin number (BCM numbering)
     Enabled bool     `json:"enabled"` // if false the zone is ignored
     Mode    string   `json:"mode,omitempty"` // input mode: "NO" (normally open), "NC" (normally closed), "EOL" (end of line)
+    // EntryExit marks this zone as an entry/exit sensor.  When armed in a
+    // normal mode, triggers on entry/exit sensors start an entry delay
+    // timer instead of immediately alarming.  Closing the entry/exit
+    // circuit completes an exit delay during arming.  This field is
+    // optional and defaults to false.
+    EntryExit bool   `json:"entry_exit,omitempty"`
 }
 
 // ArmMode associates a name with a list of zone IDs that should be monitored when this mode is active.
@@ -53,6 +59,17 @@ type Config struct {
     // may define an email transport or other mechanism.  See AlertConfig for
     // details.
     Alerts   []AlertConfig `json:"alerts,omitempty"`
+
+    // ExitDelay specifies the number of seconds to wait after arming
+    // before the system fully arms.  This delay allows the user to
+    // leave the premises via the entry/exit zone.  If zero, a
+    // default of 30 seconds will be used.
+    ExitDelay int `json:"exit_delay,omitempty"`
+    // EntryDelay specifies the number of seconds to wait after an
+    // entry/exit zone is triggered when armed.  During this period
+    // the system awaits disarm before raising an alarm.  If zero,
+    // a default of 30 seconds will be used.
+    EntryDelay int `json:"entry_delay,omitempty"`
 }
 
 // AlertConfig specifies the configuration for a single alerting mechanism.  The

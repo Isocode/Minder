@@ -31,6 +31,118 @@ type Server struct {
     testMode  int             // 0 = normal, 1 = TestSoft, 2 = TestWiring
     alerts    []AlertHandler  // configured alert handlers
     triggerMu sync.Mutex      // guards concurrent access to triggered map
+
+    // pendingMode holds the arm mode that will become active once the exit
+    // delay completes.  When non-empty, currentMode is set to "ExitDelay"
+    // and exitTimer is running.
+    pendingMode string
+    exitTimer   *time.Timer
+    exitDelayEnd time.Time
+    // entryTimer triggers an alarm when an entry/exit zone is opened while
+    // armed.  When non-nil, the system is in entry delay and will go into
+    // alarm if not disarmed before entryDelayEnd.
+    entryTimer   *time.Timer
+    entryDelayEnd time.Time
+    // alarm indicates that the system has entered alarm state due to a
+    // triggered sensor or expired entry delay.  When true, the status
+    // endpoint should report an alarm condition to the UI.
+    alarm     bool
+}
+
+// startExitDelay begins an exit delay when arming the system.  It sets
+// currentMode to "ExitDelay", records the pending mode and schedules
+// completeExitDelay to run after the configured duration.  If an exit
+// delay is already in progress it will be replaced.
+func (s *Server) startExitDelay(targetMode string) {
+    cfg := s.cfgMgr.Get()
+    delay := cfg.ExitDelay
+    if delay <= 0 {
+        delay = 30
+    }
+    // Cancel any existing exit timer
+    if s.exitTimer != nil {
+        s.exitTimer.Stop()
+    }
+    s.pendingMode = targetMode
+    s.currentMode = "ExitDelay"
+    s.exitDelayEnd = time.Now().Add(time.Duration(delay) * time.Second)
+    s.exitTimer = time.AfterFunc(time.Duration(delay)*time.Second, func() {
+        s.completeExitDelay()
+    })
+    s.logger.Log("exit delay started for mode %s", targetMode)
+}
+
+// completeExitDelay finishes the exit delay and fully arms the system in
+// pendingMode.  It resets exitTimer and pendingMode.
+func (s *Server) completeExitDelay() {
+    // If disarmed before the timer fires, pendingMode will be empty.
+    if s.pendingMode != "" {
+        s.currentMode = s.pendingMode
+        s.pendingMode = ""
+    }
+    s.exitTimer = nil
+    s.exitDelayEnd = time.Time{}
+    s.logger.Log("exit delay complete, system armed")
+}
+
+// startEntryDelay begins an entry delay when an entry/exit sensor is
+// triggered while armed.  If an entry delay is already active, this
+// function does nothing.  The timer will call triggerAlarm when it
+// expires.
+func (s *Server) startEntryDelay() {
+    if s.entryTimer != nil {
+        return
+    }
+    cfg := s.cfgMgr.Get()
+    delay := cfg.EntryDelay
+    if delay <= 0 {
+        delay = 30
+    }
+    s.entryDelayEnd = time.Now().Add(time.Duration(delay) * time.Second)
+    s.entryTimer = time.AfterFunc(time.Duration(delay)*time.Second, func() {
+        s.triggerAlarm("entry delay expired")
+    })
+    s.logger.Log("entry delay started (%d seconds)", delay)
+}
+
+// cancelEntryDelay stops any running entry delay timer.
+func (s *Server) cancelEntryDelay() {
+    if s.entryTimer != nil {
+        s.entryTimer.Stop()
+        s.entryTimer = nil
+        s.entryDelayEnd = time.Time{}
+    }
+}
+
+// triggerAlarm transitions the system into alarm state.  It logs the
+// reason and invokes alert handlers for all triggered zones.  When in
+// alarm state, status responses will include Alarm=true.  Triggering the
+// alarm also stops any running entry or exit delays.
+func (s *Server) triggerAlarm(reason string) {
+    if s.alarm {
+        return
+    }
+    s.alarm = true
+    s.cancelEntryDelay()
+    if s.exitTimer != nil {
+        s.exitTimer.Stop()
+        s.exitTimer = nil
+        s.exitDelayEnd = time.Time{}
+        s.pendingMode = ""
+    }
+    s.currentMode = "Alarm"
+    s.logger.Log("alarm triggered: %s", reason)
+    // Invoke alert handlers for each currently triggered zone
+    cfg := s.cfgMgr.Get()
+    for _, z := range cfg.Zones {
+        if s.triggered[z.ID] {
+            for _, h := range s.alerts {
+                if err := h.Send(z, s.logger); err != nil {
+                    s.logger.Log("alert handler %s error: %v", h.Name(), err)
+                }
+            }
+        }
+    }
 }
 
 // NewServer constructs a new Server and initialises GPIO.
@@ -224,9 +336,14 @@ func (s *Server) handleLogout(w http.ResponseWriter, r *http.Request) {
 // handleStatus returns the current arm mode and triggered zones.
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, user User) {
     type status struct {
-        Mode     string     `json:"mode"`
+        Mode      string     `json:"mode"`
         Triggered []int      `json:"triggered"`
-        Zones    []ZoneInfo `json:"zones"`
+        Zones     []ZoneInfo `json:"zones"`
+        // Remaining seconds for exit and entry delays; zero if no delay active
+        ExitDelay int `json:"exit_delay"`
+        EntryDelay int `json:"entry_delay"`
+        // Alarm indicates that the system is in alarm state
+        Alarm     bool `json:"alarm"`
     }
     cfg := s.cfgMgr.Get()
     triggered := []int{}
@@ -246,7 +363,23 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request, user User)
             Active:  s.triggered[z.ID],
         }
     }
-    resp := status{Mode: s.currentMode, Triggered: triggered, Zones: zones}
+    // Compute remaining delay seconds
+    exitRem := 0
+    entryRem := 0
+    now := time.Now()
+    if !s.exitDelayEnd.IsZero() {
+        d := int(s.exitDelayEnd.Sub(now).Seconds())
+        if d > 0 {
+            exitRem = d
+        }
+    }
+    if !s.entryDelayEnd.IsZero() {
+        d := int(s.entryDelayEnd.Sub(now).Seconds())
+        if d > 0 {
+            entryRem = d
+        }
+    }
+    resp := status{Mode: s.currentMode, Triggered: triggered, Zones: zones, ExitDelay: exitRem, EntryDelay: entryRem, Alarm: s.alarm}
     w.Header().Set("Content-Type", "application/json")
     _ = json.NewEncoder(w).Encode(resp)
 }
@@ -310,14 +443,37 @@ func (s *Server) handleArm(w http.ResponseWriter, r *http.Request, user User) {
         http.Error(w, "unknown arm mode", http.StatusBadRequest)
         return
     }
-    s.currentMode = mode
-    s.testMode = 0
+    // Determine if any of the active zones are entry/exit sensors.  If so,
+    // start an exit delay before fully arming.  During the delay the
+    // system remains in "ExitDelay" state, and closing the entry/exit
+    // circuit (contact closed) will complete the delay early.  If no
+    // entry/exit zones are present, arm immediately.
+    hasEntryExit := false
+    // Iterate through the active zones and check if any zone is marked as
+    // entry/exit.  Use the existing cfg variable defined above instead of
+    // re‑declaring it to avoid shadowing and compilation errors.
+    for _, id := range activeZones {
+        for _, z := range cfg.Zones {
+            if z.ID == id && z.EntryExit {
+                hasEntryExit = true
+                break
+            }
+        }
+        if hasEntryExit {
+            break
+        }
+    }
     // Reset triggered flags
     s.triggerMu.Lock()
     s.triggered = make(map[int]bool)
     s.triggerMu.Unlock()
-    log.Printf("System armed in %s mode (active zones: %v)\n", s.currentMode, activeZones)
-    s.logger.Log("arm %s by %s", s.currentMode, user.Username)
+    s.testMode = 0
+    if hasEntryExit {
+        s.startExitDelay(mode)
+    } else {
+        s.currentMode = mode
+        s.logger.Log("arm %s by %s", s.currentMode, user.Username)
+    }
     w.WriteHeader(http.StatusNoContent)
 }
 
@@ -329,6 +485,15 @@ func (s *Server) handleDisarm(w http.ResponseWriter, r *http.Request, user User)
     }
     s.currentMode = "Disarmed"
     s.testMode = 0
+    // Cancel any running entry or exit delay and clear alarm
+    if s.exitTimer != nil {
+        s.exitTimer.Stop()
+        s.exitTimer = nil
+        s.exitDelayEnd = time.Time{}
+        s.pendingMode = ""
+    }
+    s.cancelEntryDelay()
+    s.alarm = false
     s.triggerMu.Lock()
     s.triggered = make(map[int]bool)
     s.triggerMu.Unlock()
@@ -745,9 +910,13 @@ func (s *Server) pollSensors() {
                 activeIDs = append(activeIDs, z.ID)
             }
         } else {
-            // Find active zones for the current mode
+            // Find active zones for the current mode (pendingMode acts as normal until exit delay completes)
+            modeName := s.currentMode
+            if s.currentMode == "ExitDelay" {
+                modeName = s.pendingMode
+            }
             for _, am := range cfg.ArmModes {
-                if strings.EqualFold(am.Name, s.currentMode) {
+                if strings.EqualFold(am.Name, modeName) {
                     activeIDs = am.ActiveZones
                     break
                 }
@@ -762,6 +931,44 @@ func (s *Server) pollSensors() {
                 }
             }
             if zone == nil || !zone.Enabled {
+                continue
+            }
+            // When an exit delay is active, check for early completion: if
+            // entry/exit zone is closed (not triggered), complete the delay.  Do not
+            // treat triggers during exit delay as alarms.
+            if s.exitTimer != nil {
+                if zone.EntryExit {
+                    // If the entry/exit sensor reads closed (not triggered), finish the exit delay
+                    if !zoneTriggered(*zone) {
+                        s.completeExitDelay()
+                    }
+                }
+                // Skip processing triggers during exit delay
+                continue
+            }
+            // If an entry delay is active: any trigger on a non-entry/exit zone
+            // should immediately alarm.  Triggers on entry/exit zones during
+            // entry delay are ignored.
+            if s.entryTimer != nil {
+                if zone.EntryExit {
+                    // ignore triggers during entry delay on entry/exit zone
+                    continue
+                }
+                if zoneTriggered(*zone) {
+                    // immediate alarm
+                    s.triggerMu.Lock()
+                    s.triggered[zone.ID] = true
+                    s.triggerMu.Unlock()
+                    s.triggerAlarm("sensor triggered during entry delay")
+                }
+                continue
+            }
+            // Normal armed operation (no delays): if entry/exit sensor triggers,
+            // start entry delay.  Otherwise handle trigger normally.
+            if zone.EntryExit {
+                if zoneTriggered(*zone) {
+                    s.startEntryDelay()
+                }
                 continue
             }
             if zoneTriggered(*zone) {
@@ -779,6 +986,9 @@ func (s *Server) pollSensors() {
                             }
                         }
                     }
+                    // Triggering a non entry/exit zone immediately causes alarm
+                    // Trigger an immediate alarm; include zone name in reason
+                    s.triggerAlarm(fmt.Sprintf("zone %s triggered", zone.Name))
                 } else {
                     s.triggerMu.Unlock()
                 }

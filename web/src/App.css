@@ -182,3 +182,44 @@ tr.triggered {
   opacity: 0.6;
   cursor: not-allowed;
 }
+
+/* Alarm banner */
+.alarm-alert {
+  background-color: #dc3545;
+  color: #fff;
+  padding: 0.5rem;
+  border-radius: 4px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 0.5rem;
+}
+
+/* Delay progress bars */
+.delay-container {
+  margin-top: 0.5rem;
+}
+.delay-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+}
+.delay-bar {
+  width: 100%;
+  height: 10px;
+  background-color: #e9ecef;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 0.25rem;
+}
+.delay-bar-fill {
+  height: 100%;
+  background-color: #0d6efd; /* default color; overridden by specific classes */
+  width: 0%;
+  transition: width 0.5s linear;
+}
+.exit-delay .delay-bar-fill {
+  background-color: #fd7e14; /* orange for exit delay */
+}
+.entry-delay .delay-bar-fill {
+  background-color: #198754; /* green for entry delay */
+}

@@ -50,6 +50,8 @@ func (cm *ConfigManager) Load() error {
                 },
                 LogFile: "events.log",
                 Alerts: []AlertConfig{{Type: "log"}},
+                ExitDelay: 30,
+                EntryDelay: 30,
             }
             cm.cfg = defaultCfg
             cm.loaded = true
