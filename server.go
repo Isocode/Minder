@@ -501,7 +501,15 @@ func (s *Server) handleUsers(w http.ResponseWriter, r *http.Request, user User) 
             return
         }
         s.logger.Log("create user %s by %s", req.Username, user.Username)
+        // Return the created user (without password) as JSON.  A status of
+        // 201 indicates successful creation and prevents the front‑end from
+        // attempting to parse an empty response body.
+        w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(http.StatusCreated)
+        _ = json.NewEncoder(w).Encode(struct {
+            Username string `json:"username"`
+            Admin    bool   `json:"admin"`
+        }{Username: req.Username, Admin: req.Admin})
     default:
         http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
     }
@@ -619,7 +627,12 @@ func (s *Server) handleArmModes(w http.ResponseWriter, r *http.Request, user Use
             return
         }
         s.logger.Log("update arm mode %s by %s", req.Name, user.Username)
+        // Return the created or updated arm mode as JSON with status 201.  This
+        // avoids sending an empty body, which would cause the front‑end to
+        // attempt to parse an empty response and yield a JSON error.
+        w.Header().Set("Content-Type", "application/json")
         w.WriteHeader(http.StatusCreated)
+        _ = json.NewEncoder(w).Encode(req)
     default:
         http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
     }

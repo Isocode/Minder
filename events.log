@@ -38,3 +38,30 @@
 2025-07-27T15:07:19+01:00 - arm Away by admin
 2025-07-27T15:07:21+01:00 - disarm by admin
 2025-07-27T15:07:54+01:00 - create user sean by admin
+2025-07-27T15:16:57+01:00 - login admin
+2025-07-27T15:17:50+01:00 - arm TestSoft by admin
+2025-07-27T15:17:57+01:00 - test trigger zone id=1 (Garage) by admin
+2025-07-27T15:17:57+01:00 - alert: zone 1 (Garage) triggered
+2025-07-27T15:18:10+01:00 - test trigger zone id=2 (Kitchen) by admin
+2025-07-27T15:18:10+01:00 - alert: zone 2 (Kitchen) triggered
+2025-07-27T15:18:16+01:00 - test trigger zone id=3 (Living Rooom) by admin
+2025-07-27T15:18:16+01:00 - alert: zone 3 (Living Rooom) triggered
+2025-07-27T15:18:21+01:00 - test trigger zone id=4 (Garden) by admin
+2025-07-27T15:18:21+01:00 - alert: zone 4 (Garden) triggered
+2025-07-27T15:18:24+01:00 - test trigger zone id=5 (Front Door) by admin
+2025-07-27T15:18:24+01:00 - alert: zone 5 (Front Door) triggered
+2025-07-27T15:18:30+01:00 - disarm by admin
+2025-07-27T15:25:27+01:00 - login admin
+2025-07-27T15:25:42+01:00 - arm Home by admin
+2025-07-27T15:25:52+01:00 - disarm by admin
+2025-07-27T15:25:57+01:00 - arm Away by admin
+2025-07-27T15:26:00+01:00 - disarm by admin
+2025-07-27T15:26:06+01:00 - arm External by admin
+2025-07-27T15:26:08+01:00 - disarm by admin
+2025-07-27T15:27:21+01:00 - update arm mode External by admin
+2025-07-27T15:27:43+01:00 - update arm mode Away by admin
+2025-07-27T15:28:27+01:00 - update arm mode Home by admin
+2025-07-27T15:29:39+01:00 - arm TestSoft by admin
+2025-07-27T15:29:45+01:00 - test trigger zone id=5 (Front Door) by admin
+2025-07-27T15:29:45+01:00 - alert: zone 5 (Front Door) triggered
+2025-07-27T15:29:54+01:00 - disarm by admin

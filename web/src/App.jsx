@@ -27,6 +27,8 @@ export default function App() {
   const [users, setUsers] = useState([]);
   const [armModes, setArmModes] = useState([]);
   const [currentMode, setCurrentMode] = useState('');
+  // Selected arm mode for arming via drop‑down on the status page
+  const [selectedMode, setSelectedMode] = useState('');
   const [page, setPage] = useState('status');
   const [newZone, setNewZone] = useState({ name: '', type: 'contact', pin: '', enabled: true });
   const [zoneError, setZoneError] = useState('');
@@ -74,6 +76,10 @@ export default function App() {
         try {
           const ams = await api('/api/arm_modes');
           setArmModes(ams);
+          // Initialize selectedMode to the first mode or keep existing selection
+          if (ams && ams.length > 0 && !selectedMode) {
+            setSelectedMode(ams[0].name);
+          }
         } catch (err) {
           // ignore
         }
@@ -239,12 +245,17 @@ export default function App() {
               <h2>System Status</h2>
               <p>Mode: <strong>{currentMode}</strong></p>
               <div className="buttons">
-                <button onClick={() => armSystem('Away')} disabled={currentMode === 'Away'}>Arm Away</button>
-                <button onClick={() => armSystem('Home')} disabled={currentMode === 'Home'}>Arm Home</button>
+                {/* Dynamic arm mode selection */}
+                <select value={selectedMode} onChange={(e) => setSelectedMode(e.target.value)}>
+                  {armModes.map((am) => (
+                    <option key={am.name} value={am.name}>{am.name}</option>
+                  ))}
+                  {/* Include test modes */}
+                  <option value="TestSoft">Test Soft</option>
+                  <option value="TestWiring">Test Wiring</option>
+                </select>
+                <button onClick={() => armSystem(selectedMode)} disabled={currentMode === selectedMode}>Arm</button>
                 <button onClick={disarmSystem} disabled={currentMode === 'Disarmed'}>Disarm</button>
-                {/* Test mode buttons */}
-                <button onClick={() => armSystem('TestSoft')} disabled={currentMode === 'TestSoft'}>Test Soft</button>
-                <button onClick={() => armSystem('TestWiring')} disabled={currentMode === 'TestWiring'}>Test Wiring</button>
               </div>
               <h3>Zones</h3>
               <table>
@@ -311,13 +322,21 @@ export default function App() {
               <h2>Arm Modes</h2>
               <table>
                 <thead>
-                  <tr><th>Name</th><th>Active Zones</th></tr>
+                  <tr><th>Name</th><th>Active Zones</th><th>Actions</th></tr>
                 </thead>
                 <tbody>
                   {armModes.map((am) => (
                     <tr key={am.name}>
                       <td>{am.name}</td>
                       <td>{am.active_zones.join(', ')}</td>
+                      <td>
+                        <button
+                          onClick={() => {
+                            setArmModeName(am.name);
+                            setNewArmModeZones(am.active_zones.join(', '));
+                          }}
+                        >Edit</button>
+                      </td>
                     </tr>
                   ))}
                 </tbody>

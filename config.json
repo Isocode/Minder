@@ -42,17 +42,27 @@
   "arm_modes": [
     {
       "name": "Away",
-      "active_zones": []
+      "active_zones": [
+        1,
+        2,
+        3,
+        4,
+        5
+      ]
     },
     {
       "name": "Home",
-      "active_zones": []
+      "active_zones": [
+        1,
+        2,
+        4
+      ]
     },
     {
       "name": "External",
       "active_zones": [
-        3,
-        6
+        1,
+        4
       ]
     }
   ],
