@@ -1,2 +1,43 @@
+# Go-specific ignores
+# Build artifacts and binaries
+/bin/
+/pkg/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+*.prof
+
+# Dependency directories (if using Go modules, you might not need this)
+vendor/
+
+# Editor/IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Logs and temp files
+*.log
+tmp/
+
+# Sensitive files: self-signed certs and keys
+# Ignore all .crt, .key, .pem files (adjust if needed)
 *.crt
 *.key
+*.pem
+*.cer
+
+# Or ignore a specific directory containing them
+#certs/
+#keys/
+
+# If certs are in a subdir, ignore recursively
+#certs/**

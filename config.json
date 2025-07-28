@@ -1,5 +1,7 @@
 {
   "http_port": 8443,
+  "exit_delay": 30,
+  "entry_delay": 30,
   "cert_file": "server.crt",
   "key_file": "server.key",
   "zones": [
@@ -56,7 +58,8 @@
         2,
         3,
         4,
-        5
+        5,
+        6
       ]
     },
     {
